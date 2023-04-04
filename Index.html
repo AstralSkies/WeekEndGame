@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isometric Game</title>
+    <style>
+        canvas {
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600" tabindex="1"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+canvas.focus(); // Focus the canvas to enable keyboard input
+
+const tileSize = 32;
+const playerColor = 'white';
+const enemyColor = 'green';
+
+const player = {
+    x: 10,
+    y: 10,
+    color: playerColor
+};
+
+const lasers = [];
+
+let enemies = [];
+
+function spawnEnemies(count) {
+    for (let i = 0; i < count; i++) {
+        const enemy = {
+            x: Math.floor(Math.random() * 10),
+            y: Math.floor(Math.random() * 10),
+            color: enemyColor
+        };
+        enemies.push(enemy);
+    }
+}
+
+spawnEnemies(5);
+function isoTo2D(x, y) {
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 4;
+    return {
+        x: (x - y) + offsetX,
+        y: (x + y) / 2 + offsetY
+    };
+}
+
+
+function drawTile(x, y, color, size = tileSize) {
+    const pos = isoTo2D(x * size, y * size);
+
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x + size / 2, pos.y + size / 4);
+    ctx.lineTo(pos.x, pos.y + size / 2);
+    ctx.lineTo(pos.x - size / 2, pos.y + size / 4);
+    ctx.closePath();
+
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+let lastFacingDirection = 'right';
+
+function handleKeydown(event) {
+    switch (event.key) {
+        case 'ArrowUp':
+            player.y--;
+            lastFacingDirection = 'up';
+            break;
+        case 'ArrowDown':
+            player.y++;
+            lastFacingDirection = 'down';
+            break;
+        case 'ArrowLeft':
+            player.x--;
+            lastFacingDirection = 'left';
+            break;
+        case 'ArrowRight':
+            player.x++;
+            lastFacingDirection = 'right';
+            break;
+    }
+}
+
+// Draw text on the canvas if enemies are killed
+let killedEnemies = 0;
+function drawText(text, x, y, color = 'white') {
+    ctx.fillStyle = color;
+    ctx.font = '30px Arial';
+    ctx.fillText(text, x, y);
+}
+
+// Respawn enemies when they are killed
+function respawnEnemies() {
+    if (enemies.length === 0) {
+        spawnEnemies(5);
+    }
+}
+
+
+function shootLasers() {
+    // Store the direction in which the laser was fired
+    const firingDirection = lastFacingDirection;
+
+    const laser = {
+        x: player.x,
+        y: player.y,
+        color: player.color,
+        intervalId: null,
+        direction: firingDirection // Add the direction property to the laser
+    };
+
+    function moveLaser() {
+        const dx = (laser.direction === 'left' ? -1 : (laser.direction === 'right' ? 1 : 0));
+        const dy = (laser.direction === 'up' ? -1 : (laser.direction === 'down' ? 1 : 0));
+        laser.x += dx;
+        laser.y += dy;
+
+        drawTile(laser.x, laser.y, laser.color);
+
+        for (let i = 0; i < enemies.length; i++) {
+            const enemy = enemies[i];
+            if (laser.x === enemy.x && laser.y === enemy.y) {
+                clearInterval(laser.intervalId);
+                lasers.splice(lasers.indexOf(laser), 1);
+                enemies.splice(i, 1);
+                killedEnemies++;
+                drawText(`Killed enemies: ${killedEnemies}`, 10, 50);
+                respawnEnemies();
+                return
+            }
+        }
+
+        if (laser.y < 0 || laser.y > 10 || laser.x < 0 || laser.x > 10) {
+            clearInterval(laser.intervalId);
+            lasers.splice(lasers.indexOf(laser), 1);
+        }
+
+    }
+
+    laser.intervalId = setInterval(moveLaser, 100);
+    lasers.push(laser);
+}
+
+
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+              drawTile(i, j, 'black');
+        }
+    }
+
+    for (let i = 0; i < enemies.length; i++) {
+        const enemy = enemies[i];
+        drawTile(enemy.x, enemy.y, enemy.color);
+    }
+
+    for (let i = 0; i < lasers.length; i++) {
+        const laser = lasers[i];
+        drawTile(laser.x, laser.y, laser.color);
+    }
+
+    drawTile(player.x, player.y, player.color);
+}
+
+function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+    drawText(`Killed enemies: ${killedEnemies}`, 10, 50);
+}
+
+canvas.addEventListener('keydown', handleKeydown);
+canvas.addEventListener('keydown', event => {
+    if (event.key === ' ') {
+        shootLasers();
+    }
+});
+
+gameLoop();
+    </script>
+</body>
+</html>
